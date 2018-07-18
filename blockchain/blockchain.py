@@ -68,6 +68,23 @@ class BlockChain(object):
         logging.info("Transaction successfully added. Number of Transactions now pending are %d " % len(self.current))
         return transaction
 
+    def _reset_current_transactions(self):
+        """
+            Attempts to clear up current transaction queue,
+            provided all of them have been added to the most recent block mined
+        :return: <bool> True, if successful else False
+        """
+        if not self.current:
+            logging.info("Current Queue has no pending transactions. Hence, nothing to reset")
+            return True
+        elif self.chain and self.chain[-1].Transactions == self.current:
+            logging.info("Last Block in the BlockChain contains all the current/pending transactions.")
+            logging.info("This means the block has been mined and we can remove these transactions from current queue")
+            self.current = []
+            return True
+        logging.error("Some issue that needs to be investigated")
+        raise IOError("Either BlockChain is invalid or we have issue with Current Transactions queue")
+
     def create_block(self, is_genesis=False):
         """
             Consumed Previous Hash and Proof to generate a new Proof using Proof of Work algorithm.
@@ -85,8 +102,9 @@ class BlockChain(object):
             previous_hash = self._hash_block(self.get_last_block())
             block = BLOCK(self.get_size() + 1, time(), self.current, proof, previous_hash)
         logging.info("################# Mining Started ######################")
-        self.current = []
+
         self.chain.append(block)
+        self._reset_current_transactions()
         logging.info("### Successfully mined a new Block # %s" % block.Index)
         logging.info("### Previous Hash was: %s" % previous_hash)
         logging.info("### Current Hash generated via PoW: %s" % proof)
