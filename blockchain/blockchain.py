@@ -99,7 +99,7 @@ class BlockChain(object):
             block = BLOCK(self.get_size() + 1, time(), self.current, proof, previous_hash)
         else:
             proof = self._generate_proof_of_work()
-            previous_hash = self._hash_block(self.get_last_block())
+            previous_hash = self.hash_block(self.get_last_block())
             block = BLOCK(self.get_size() + 1, time(), self.current, proof, previous_hash)
         logging.info("################# Mining Started ######################")
 
@@ -121,10 +121,10 @@ class BlockChain(object):
 
         last_block = self.get_last_block()
         last_proof = last_block.Hash
-        last_hash = self._hash_block(last_block)
+        last_hash = self.hash_block(last_block)
 
         proof = 0
-        while self._validate_proof(last_proof, proof, last_hash) is False:
+        while self.validate_proof(last_proof, proof, last_hash) is False:
             proof += 1
 
         return proof
@@ -151,7 +151,7 @@ class BlockChain(object):
         return self.chain
 
     @staticmethod
-    def _validate_proof(last_proof, proof, last_hash):
+    def validate_proof(last_proof, proof, last_hash):
         """
         Validates the Proof
         :param last_proof: <int> Previous Proof
@@ -165,7 +165,7 @@ class BlockChain(object):
         return guess_hash[:4] == "0000"
 
     @staticmethod
-    def _hash_block(block):
+    def hash_block(block):
         """
         Creates a SHA-256 hash of a Block
         :param block: Block
