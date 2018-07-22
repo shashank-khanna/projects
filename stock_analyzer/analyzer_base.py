@@ -44,16 +44,16 @@ class AnalyzerBase(object):
     def ols_model(self):
         raise NotImplementedError("Need to be implemented by sub-classes")
 
-    def setup_underlying_data(self):
+    def setup_underlying_data(self, refresh=False):
         if not os.path.exists(self.DATA_FOLDER):
             os.makedirs(self.DATA_FOLDER)
 
-        self.get_sp500_data()
-        self.get_stock_data()
+        self.get_sp500_data(refresh=refresh)
+        self.get_stock_data(refresh=refresh)
 
-    def get_stock_data(self):
+    def get_stock_data(self, refresh=False):
         df = pd.DataFrame()
-        if not os.path.exists('{}/{}.csv'.format(self.DATA_FOLDER, self.ticker)):
+        if refresh or not os.path.exists('{}/{}.csv'.format(self.DATA_FOLDER, self.ticker)):
             try:
                 df = get_data(self.ticker, self.hist_start_date, useQuandl=False)
                 self.save_data(df, self.ticker)
@@ -62,7 +62,7 @@ class AnalyzerBase(object):
                 logging.error(str(exception))
         else:
             logging.debug('Already have {}'.format(self.ticker))
-            df = pd.read_csv('{}/{}.csv'.format(self.DATA_FOLDER, self.ticker), parse_dates=True, index_col=0)
+            df = pd.read_csv('{}/{}.csv'.format(self.DATA_FOLDER, self.ticker), parse_dates=True, index_col=1)
         if df.empty:
             logging.error("Unable to get Stock-Data from the Web. Please check connection")
             raise IOError("Unable to get Stock-Data from the Web")
@@ -76,9 +76,9 @@ class AnalyzerBase(object):
         data_frame.to_csv('{}/{}.csv'.format(self.DATA_FOLDER, file_name))
         logging.info("Save completed for {}".format(file_name))
 
-    def get_sp500_data(self):
+    def get_sp500_data(self, refresh=False):
         df = pd.DataFrame()
-        if not os.path.exists('{}/{}.csv'.format(self.DATA_FOLDER, self.SP500_FILE)):
+        if refresh or not os.path.exists('{}/{}.csv'.format(self.DATA_FOLDER, self.SP500_FILE)):
             try:
                 df = get_spx_prices(self.hist_start_date)
                 self.save_data(df, self.SP500_FILE)
@@ -87,7 +87,7 @@ class AnalyzerBase(object):
                 logging.error(str(exception))
         else:
             logging.debug('Already have {}'.format(self.SP500_FILE))
-            df = pd.read_csv('{}/{}.csv'.format(self.DATA_FOLDER, self.SP500_FILE), parse_dates=True, index_col=0)
+            df = pd.read_csv('{}/{}.csv'.format(self.DATA_FOLDER, self.SP500_FILE), parse_dates=True, index_col=1)
         if df.empty:
             logging.error("Unable to get Stock-Data from the Web. Please check connection")
             raise IOError("Unable to get Stock-Data from the Web")
