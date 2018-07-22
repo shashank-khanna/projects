@@ -134,6 +134,22 @@ class OptionPricingBase(object):
         logging.info("### RISK FREE RATE = %f " % self.risk_free_rate)
         logging.info("### SPOT PRICE = %f " % self.spot_price)
 
+    def is_call_put_parity_maintained(self, call_price, put_price):
+        """ Verify is the Put-Call Pairty is maintained by the two option prices calculated by us.
+
+        :param call_price: <float>
+        :param put_price: <float>
+        :return: True, if Put-Call parity is maintained else False
+        """
+        lhs = call_price - put_price
+        rhs = self.spot_price - np.exp(-1 * self.risk_free_rate * self.time_to_maturity) * self.strike_price
+        logging.info("Put-Call Parity LHS = %f" % lhs)
+        logging.info("Put-Call Parity RHS = %f" % rhs)
+        return bool(round(lhs) == round(rhs))
+
+    def calculate_option_prices(self):
+        raise NotImplementedError("Subclasses need to implement this function")
+
 
 if __name__ == '__main__':
     pricer = OptionPricingBase('AAPL', datetime.datetime(2018, 9, 20), 190)

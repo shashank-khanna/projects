@@ -1,3 +1,4 @@
+# coding=utf-8
 import logging
 from random import gauss
 
@@ -10,15 +11,29 @@ logging.basicConfig(format='%(level_name)s: %(message)s', level=logging.DEBUG)
 
 
 class AmericanOptionPricing(OptionPricingBase):
-    SIMULATION_COUNT = 100000
+    """
+    This class uses Monte-Carlo simulation to calculate prices for American Call and Put Options.
+
+    TODO: Will create a separate class to calculate prices using Binomial Trees
+    """
+    SIMULATION_COUNT = 100000  # Number of Simulations to be performed for Brownian motion
 
     def __init__(self, ticker, expiry_date, strike, dividend=0.0):
         super(AmericanOptionPricing, self).__init__(ticker, expiry_date, strike, dividend=dividend)
         logging.info("American Option Pricing. Initializing variables")
+
+        # Get/Calculate all the required underlying parameters, ex. Volatility, Risk-free rate, etc.
         self.initialize_variables()
         self.log_parameters()
 
     def _generate_asset_price(self):
+        """ Calculate predicted Asset Price at the time of Option Expiry date.
+        It used a random variable based on Gaus model and then calculate price using the below equation.
+
+            St = S * exp((r− 0.5*σ^2)(T−t)+σT−t√ϵ)
+
+        :return: <float> Expected Asset Price
+        """
         expected_price = self.spot_price * np.exp(
             (self.risk_free_rate - 0.5 * self.volatility ** 2) * self.time_to_maturity +
             self.volatility * np.sqrt(self.time_to_maturity) * gauss(0.0, 1.0))
@@ -26,12 +41,32 @@ class AmericanOptionPricing(OptionPricingBase):
         return expected_price
 
     def _call_payoff(self, expected_price):
+        """ Calculate payoff of the call option at Option Expiry Date assuming the asset price
+        is equal to expected price. This calculation is based on below equation:
+
+            Payoff at T = max(0,ExpectedPrice−Strike)
+
+        :param expected_price: <float> Expected price of the underlying asset on Expiry Date
+        :return: <float> payoff
+        """
         return max(0, expected_price - self.strike_price)
 
     def _put_payoff(self, expected_price):
+        """ Calculate payoff of the put option at Option Expiry Date assuming the asset price
+        is equal to expected price. This calculation is based on below equation:
+
+            Payoff at T = max(0,Strike-ExpectedPrice)
+
+        :param expected_price: <float> Expected price of the underlying asset on Expiry Date
+        :return: <float> payoff
+        """
         return max(0, self.strike_price - expected_price)
 
     def _generate_simulations(self):
+        """ Perform Brownian motion simulation to get the Call & Put option payouts on Expiry Date
+
+        :return: <list of call-option payoffs>, <list of put-option payoffs>
+        """
         call_payoffs, put_payoffs = [], []
         for _ in xrange(self.SIMULATION_COUNT):
             expected_asset_price = self._generate_asset_price()
@@ -40,6 +75,15 @@ class AmericanOptionPricing(OptionPricingBase):
         return call_payoffs, put_payoffs
 
     def calculate_option_prices(self):
+        """ Calculate present-value of of expected payoffs and their average becomes the price of the respective option.
+        Calculations are performed based on below equations:
+
+            Ct=PV(E[max(0,PriceAtExpiry−Strike)])
+
+            Pt=PV(E[max(0,Strike−PriceAtExpiry)])
+
+        :return: <float>, <float> Calculated price of Call & Put options
+        """
         call_payoffs, put_payoffs = self._generate_simulations()
         discount_factor = np.exp(-1 * self.risk_free_rate * self.time_to_maturity)
         call_price = discount_factor * (sum(call_payoffs) / len(call_payoffs))
@@ -47,13 +91,6 @@ class AmericanOptionPricing(OptionPricingBase):
         logging.info("### Call Price calculated at %f " % call_price)
         logging.info("### Put Price calculated at %f " % put_price)
         return call_price, put_price
-
-    def is_call_put_parity_maintained(self, call_price, put_price):
-        lhs = call_price - put_price
-        rhs = self.spot_price - np.exp(-1 * self.risk_free_rate * self.time_to_maturity) * self.strike_price
-        logging.info("Put-Call Parity LHS = %f" % lhs)
-        logging.info("Put-Call Parity RHS = %f" % rhs)
-        return bool(round(lhs) == round(rhs))
 
 
 if __name__ == '__main__':
