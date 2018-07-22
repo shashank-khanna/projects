@@ -93,7 +93,6 @@ class AnalyzerBase(object):
             raise IOError("Unable to get Stock-Data from the Web")
 
         df.reset_index(inplace=True)
-        # df = df.drop("Symbol", axis=1)
         df.set_index("Date", inplace=True)
         self.sp500_data = df
 
@@ -102,7 +101,6 @@ class AnalyzerBase(object):
         def lin_reg(x, y):
             x = stats.add_constant(x)
             model = stats.OLS(y, x).fit()
-
             x = x[:, 1]
             return model
 
