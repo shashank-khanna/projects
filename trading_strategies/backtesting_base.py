@@ -5,52 +5,53 @@ import numpy as np
 import pandas as pd
 from pandas.tseries.offsets import BDay
 
-from stock_analyzer.stock_asset_analyzer import StockAssetAnalyzer
+from stock_analyzer.data_fetcher import get_data
 
 
 class BackTestingBase(object):
-    INITIAL_CAPITAL = float(100000.0)
+    DEFAULT_INITIAL_CAPITAL = float(100000.0)
+
+    DEFAULT_QTY_TRADES = 100
 
     def __init__(self, ticker, look_back_days=None):
         self.ticker = ticker
-        self.stock_data = pd.DataFrame()
-        self.asset_analyzer = None
-        self.signals = pd.DataFrame()
+        self.asset_prices = pd.DataFrame()
+        self.signals = None
         self.portfolio = None
+        self.positions = None
         self.get_underlying_data(look_back_days)
 
     def get_underlying_data(self, look_back_days=None):
         if look_back_days:
             start_date = datetime.datetime.today() - BDay(look_back_days)
-            self.asset_analyzer = StockAssetAnalyzer(self.ticker, hist_start_date=start_date, refresh=True)
+            self.asset_prices = get_data(self.ticker, start=start_date, useQuandl=True)
         else:
-            self.asset_analyzer = StockAssetAnalyzer(self.ticker, datetime.datetime.today() - BDay(2000))
-        self.stock_data = self.asset_analyzer.stock_data
+            self.asset_prices = get_data(self.ticker, useQuandl=True)
 
-    def backtest(self):
-        positions = pd.DataFrame(index=self.signals.index).fillna(0.0)
-        positions[self.ticker] = 100 * self.signals['signal']
+    def generate_signals(self):
+        raise NotImplementedError("Child class needs to implement this method.")
+
+    def plot_signals(self):
+        raise NotImplementedError("Child class needs to implement this method.")
+
+    def _generate_positions(self):
+        self.positions = pd.DataFrame(index=self.signals.index).fillna(0.0)
+        self.positions[self.ticker] = self.DEFAULT_QTY_TRADES * self.signals['signal']
+
+    def backtest_portfolio(self):
+        self._generate_positions()
+        print(self.positions)
         # Initialize the portfolio with value owned
-        self.portfolio = positions.multiply(self.stock_data['Close'], axis=0)
-
+        self.portfolio = self.positions.multiply(self.asset_prices['Adj. Close'], axis=0)
         # Store the difference in shares owned
-        pos_diff = positions.diff()
-
+        pos_diff = self.positions.diff()
         # Add `holdings` to portfolio
-        self.portfolio['holdings'] = (positions.multiply(self.stock_data['Close'], axis=0)).sum(axis=1)
-
+        self.portfolio['holdings'] = (self.positions.multiply(self.asset_prices['Adj. Close'], axis=0)).sum(axis=1)
         # Add `cash` to portfolio
-        self.portfolio['cash'] = self.INITIAL_CAPITAL - \
-                                 (pos_diff.multiply(self.stock_data['Close'], axis=0)).sum(axis=1).cumsum()
-
-        # Add `total` to portfolio
+        self.portfolio['cash'] = self.DEFAULT_INITIAL_CAPITAL - \
+                                 (pos_diff.multiply(self.asset_prices['Adj. Close'], axis=0)).sum(axis=1).cumsum()
         self.portfolio['total'] = self.portfolio['cash'] + self.portfolio['holdings']
-
-        # Add `returns` to portfolio
         self.portfolio['returns'] = self.portfolio['total'].pct_change()
-
-        # Print the first lines of `portfolio`
-        print(self.portfolio.head())
 
     def plot_portfolio(self):
         fig = plt.figure()
@@ -67,10 +68,19 @@ class BackTestingBase(object):
     def sharpe_ratio(self):
         # Isolate the returns of your strategy
         returns = self.portfolio['returns']
-
         # annualized Sharpe ratio
         sharpe_ratio = np.sqrt(252) * (returns.mean() / returns.std())
-
         # Print the Sharpe ratio
         print("Sharpe Ratio", sharpe_ratio)
         return sharpe_ratio
+
+    def cagr(self):
+        # Compound Annual Growth Rate (CAGR)
+        # Get the number of days in `aapl`
+        days = (self.asset_prices.index[-1] - self.asset_prices.index[0]).days
+        # Calculate the CAGR
+        cagr = ((self.asset_prices['Adj. Close'][-1] / self.asset_prices['Adj. Close'][1])
+                ** (365.0 / days)) - 1
+        # Print the CAGR
+        print("CAGR ", cagr)
+        return cagr
