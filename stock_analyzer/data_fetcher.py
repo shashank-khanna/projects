@@ -37,6 +37,26 @@ def get_data(ticker, start, end=None, useQuandl=True):
     return df
 
 
+def get_data(ticker, useQuandl=True):
+    df = pd.DataFrame()
+    if useQuandl:
+        logging.info("Fetching data for Ticker=%s from Source=Quandl" % ticker)
+        df = quandl.get("WIKI/" + ticker)
+        logging.info("### Successfully fetched data!!")
+    else:
+        for source in SOURCES:
+            try:
+                logging.info("Fetching data for Ticker=%s from Source=%s" % (ticker, source))
+                df = data.DataReader(ticker, source)
+                if not df.empty:
+                    logging.info("### Successfully fetched data!!")
+                    break
+            except Exception as exception:
+                logging.warn("Received exception from Source=%s for Ticker=%s" % (source, ticker))
+                logging.warn(str(exception))
+    return df
+
+
 def get_treasury_rate(ticker=None):
     df = pd.DataFrame()
     if not ticker:
@@ -64,8 +84,10 @@ def get_spx_prices(start_date=None):
 
 
 if __name__ == '__main__':
-    df = get_data('AAPL', datetime.datetime(2017, 1, 1), useQuandl=True)
+    # df = get_data('AAPL', datetime.datetime(2017, 1, 1), useQuandl=True)
     # df = get_data('SPX', datetime.datetime(2017, 1, 1), useQuandl=False)
+    df = get_data('WMT', useQuandl=True)
+    print(df.head())
     print(df.tail())
     # rate = get_treasury_rate()
     # print type(rate), rate
